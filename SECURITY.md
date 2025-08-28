@@ -9,7 +9,7 @@ If you discover a security issue, please report it privately through GitHub so w
 - Use the repository Security tab: https://github.com/ambiyansyah-risyal/golang-base/security
 - Or create a private security advisory via: https://github.com/ambiyansyah-risyal/golang-base/security/advisories
 
-If you cannot use GitHub for any reason, you may email security@yourorg.com. When reporting, include:
+When reporting, include:
 
 - Affected versions and components
 - A clear description of the vulnerability
