@@ -6,7 +6,7 @@
 # License  : MIT (see LICENSE)
 # Usage    : make <target> [VAR=value]
 # Recommended: GNU Make 4.0+
-# Notes    : - Use `make check-coverage` to run tests with coverage enforcement.
+# Notes    : - Use `make test` to run tests with coverage enforcement.
 #            - Run `make install-hooks` to install the pre-push hook.
 # ============================================================================
 
@@ -49,15 +49,15 @@ help:
 		printf "\033[0;31mGit hooks:\033[0m not installed — run 'make install-hooks'\n"; \
 	fi
 	@printf "\n"
-	@printf "Tips: Run 'make check-coverage' to run tests with coverage enforcement.\n"
-	@printf "      Use 'MIN_COVERAGE=85 make check-coverage' to lower threshold temporarily.\n\n"
+	@printf "Tips: Run 'make test' to run tests with coverage enforcement.\n"
+	@printf "      Use 'MIN_COVERAGE=85 make test' to lower threshold temporarily.\n\n"
 	@printf "Usage: make <target> [VAR=value]\n\n"
 	@printf "Available targets:\n"
 	@printf "  %-18s %s\n" deps "Download and tidy dependencies"
 	@printf "  %-18s %s\n" fmt "Run 'go fmt' on the module"
 	@printf "  %-18s %s\n" lint "Run linter (requires golangci-lint)"
-	@printf "  %-18s %s\n" check-coverage "Run tests with coverage enforcement"
-	@printf "  %-18s %s\n" test "Run unit tests"
+	@printf "  %-18s %s\n" check-coverage "Alias for 'make test' (coverage enforced)"
+	@printf "  %-18s %s\n" test "Run tests with coverage enforcement"
 	@printf "  %-18s %s\n" build "Build the project (cross-arch via GOOS/GOARCH)"
 	@printf "  %-18s %s\n" run "Run the built binary (doesn't force rebuild)"
 	@printf "  %-18s %s\n" install "Install binary to GOBIN/GOPATH/bin via 'go install'"
@@ -90,13 +90,13 @@ lint:
 	@golangci-lint run ./...
 
 check-coverage:
+	@# Alias kept for backward compatibility
+	@$(MAKE) test
+
+test:
 	@echo "Running coverage check (MIN_COVERAGE=${MIN_COVERAGE:-90})"
 	@chmod +x ./scripts/check_coverage.sh || true
 	@MIN_COVERAGE=${MIN_COVERAGE:-90} ./scripts/check_coverage.sh
-
-test:
-	@echo "Running tests..."
-	@go test ./...
 
 # Build (produces $(BIN))
 build:
