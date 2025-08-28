@@ -13,3 +13,7 @@
 .vscode/
 .idea/
 *.swp
+
+# Temporary build artifact directory used by air
+tmp/
+tmp/*

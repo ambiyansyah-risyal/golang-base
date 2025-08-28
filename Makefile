@@ -122,8 +122,13 @@ install:
 # Development with auto-reload
 develop:
 	@echo "Starting development auto-reload (air)"
-	@command -v air >/dev/null 2>&1 || { echo "'air' not installed, installing..."; go install github.com/cosmtrek/air@latest; }
-	@air
+	@if command -v air >/dev/null 2>&1; then \
+		echo "'air' found, starting..."; \
+		air; \
+	else \
+		echo "'air' not installed, running scripts/install_air.sh..."; \
+		bash ./scripts/install_air.sh; \
+	fi
 
 # Docker
 docker-build:
