@@ -1,3 +1,5 @@
+[![CI](https://github.com/ambiyansyah-risyal/golang-base/actions/workflows/ci.yml/badge.svg)](https://github.com/ambiyansyah-risyal/golang-base/actions/workflows/ci.yml)
+
 go mod tidy
 go run ./cmd/server
 go test ./...

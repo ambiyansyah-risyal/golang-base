@@ -1,0 +1,21 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - name: Build
+        run: |
+          mkdir -p dist
+          go build -o dist/golang-base ./cmd/server || go build -o dist/golang-base ./cmd/app
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/golang-base
