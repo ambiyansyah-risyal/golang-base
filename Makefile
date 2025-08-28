@@ -1,16 +1,19 @@
-MODULE=github.com/yourusername/golang-base
-BINARY=golang-base
+BIN=bin/server
 
-.PHONY: build test run docker
+.PHONY: build run docker test
 
 build:
-	go build -v ./...
+	go build -o $(BIN) ./cmd/server
 
-test:
-	go test ./...
-
-run:
-	go run ./cmd/app
+run: build
+	./$(BIN)
 
 docker:
-	docker build -t $(BINARY):latest .
+	docker build -t golang-base:latest .
+
+test:
+	go test ./... 
+
+lint:
+	# requires golangci-lint: https://golangci-lint.run/usage/install/
+	golangci-lint run ./...
