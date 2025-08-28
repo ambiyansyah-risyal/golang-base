@@ -1,3 +1,4 @@
+// Package config provides configuration loading and DSN building for database connections.
 package config
 
 import (

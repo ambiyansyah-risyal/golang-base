@@ -1,147 +1,168 @@
-# golang-base
+go mod tidy
+go run ./cmd/server
+go test ./...
+docker build -t golang-base:latest .
+docker run -p 8080:8080 golang-base:latest
+# golang-base — Minimal Go REST API scaffold (Fiber, Docker, Goose migrations)
 
-A minimal Go web project scaffold using Fiber (high-performance web framework).
+A compact, production-ready Go starter template for building HTTP APIs with Fiber, containerized deployments, and migrations using Goose. This repository is ideal for developers who want a minimal, opinionated foundation for microservices and backend APIs.
 
-This repository is a lightweight starting point for building HTTP services in Go.
+Key topics: golang, go, fiber, http api, docker, migration, goose, postgres, mysql, testing, ci
 
-## Features
+## Highlights
 
-- High-performance HTTP handling with Fiber
-- Graceful shutdown support
-- Dockerized for easy deployment
-- Modular project structure for scalability
-- Unit testing setup included
+- Lightweight HTTP server using github.com/gofiber/fiber (fast, Express-like API)
+- Graceful shutdown and sensible defaults
+- Migration tooling with pressly/goose (Postgres & MySQL supported)
+- Docker multi-stage build for small production images
+- Makefile with common developer tasks (build, test, docker, migrate)
 
-## Prerequisites
+## Quick start
 
-- Go 1.21 or newer
-- Docker (optional, for container builds)
-
-## Quickstart
-
-1) Clone the repository:
+1. Clone the repository and enter the directory:
 
 ```bash
 git clone https://github.com/ambiyansyah-risyal/golang-base.git
 cd golang-base
 ```
 
-2) Initialize module & download dependencies (if you haven't already):
+2. Download modules and tidy dependencies:
 
 ```bash
 go mod tidy
 ```
 
-3) Run the server locally:
+3. Run the server locally (default port 8080):
 
 ```bash
 go run ./cmd/server
-# or
+# or use the Makefile target
 make run
 ```
 
-The server listens on :8080 by default. Health check: http://localhost:8080/health
+Health check: http://localhost:8080/health
+Root API example: GET http://localhost:8080/ returns a JSON message
 
 ## Configuration
 
-The application can be configured using environment variables:
+Configuration is read from environment variables. You can create a `.env` file (the project uses `github.com/joho/godotenv` when present).
 
-- `PORT`: The port on which the server listens (default: `8080`)
-- `LOG_LEVEL`: The logging level (e.g., `debug`, `info`, `warn`, `error`)
+Required/commonly used variables:
 
-Example:
+- DB_DRIVER — `postgres` or `mysql` (required for migrations)
+- DB_HOST — database host (default in sample config: `localhost`)
+- DB_PORT — database port (e.g. `5432`)
+- DB_USER — database user
+- DB_PASSWORD — database password
+- DB_NAME — database name
+- DB_SSLMODE — Postgres sslmode (e.g. `disable`)
 
-```bash
-export PORT=3000
-export LOG_LEVEL=debug
+Example `.env` (development):
+
+```env
+DB_DRIVER=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=golang_base
+DB_SSLMODE=disable
 ```
 
-## Testing
+The project also ships a sample `config.yaml` used for simple defaults in the repository root.
 
-Run unit tests:
+## Database migrations (goose)
+
+The project includes `cmd/migrate` which wraps pressly/goose. Use the Makefile helpers or run directly.
+
+- Create a new SQL migration:
 
 ```bash
-go test ./...
+make migrate-create NAME=add_users
+# or
+go run ./cmd/migrate create add_users sql
 ```
+
+- Apply migrations:
+
+```bash
+make migrate-up
+# or
+go run ./cmd/migrate up
+```
+
+- Revert last migration:
+
+```bash
+make migrate-down
+```
+
+Migration files live under `migrations/`.
 
 ## Docker
 
-Build and run the container:
+Build and run the production image (multi-stage Dockerfile creates a small runtime image):
 
 ```bash
 docker build -t golang-base:latest .
 docker run -p 8080:8080 golang-base:latest
 ```
 
-## Project layout
+The Docker image exposes port 8080 by default.
 
-- `cmd/server/main.go` — application entry, graceful shutdown
-- `internal/server/server.go` — Fiber app and helpers
-- `internal/handler/` — small package (placeholder) for handlers
-- `Makefile` — convenience targets: `build`, `run`, `test`, `docker`
-- `Dockerfile` — multi-stage container build
+## Development commands (Makefile)
+
+- `make deps` — tidy and download modules
+- `make fmt` — run gofmt
+- `make lint` — run golangci-lint (if installed)
+- `make test` — run unit tests
+- `make check-coverage` — run tests with coverage gate (script in `scripts/`)
+- `make build` — build a binary into `./bin/server`
+- `make run` — run the built binary (`./bin/server --config=config.yaml`)
+
+See `Makefile` for more options (migration helpers, docker-build, install-hooks).
+
+## Running tests & coverage
+
+Run the full test suite:
+
+```bash
+go test ./...
+```
+
+There is a coverage check helper at `scripts/check_coverage.sh` that the Makefile invokes via `make check-coverage`.
+
+## Project structure
+
+- `cmd/server/` — application entrypoint that starts the server and performs graceful shutdown
+- `cmd/migrate/` — migration runner using pressly/goose
+- `internal/server/` — Fiber app, routes and server lifecycle (Start / Shutdown)
+- `internal/config/` — environment loading and DSN generation
+- `internal/handler/` — HTTP handlers (minimal)
+- `migrations/` — SQL migration files for Goose
+- `Dockerfile`, `Makefile`, `config.yaml` — ops and tooling
+
+## Module & dependencies
+
+Module path (see `go.mod`): `github.com/ambiyansyah-risyal/golang-base`
+
+Key dependencies:
+
+- github.com/gofiber/fiber/v2 (HTTP framework)
+- github.com/pressly/goose/v3 (database migrations)
+- github.com/joho/godotenv (optional .env loader)
+
+## Notes & recommended next steps
+
+- Add CI (GitHub Actions) to run `go test ./...`, lint and coverage checks on PRs.
+- Expand handlers and wire a service layer for business logic.
+- Add structured logging and observability (metrics, traces) for production readiness.
+- Harden Docker image and add healthcheck metadata for orchestrators.
 
 ## Contributing
 
-Contributions are welcome! To contribute:
-
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Commit your changes and push the branch.
-4. Open a pull request with a detailed description of your changes.
-
-## Security
-
-If you discover any security vulnerabilities, please report them responsibly by contacting the repository owner.
-
-## Notes & next steps
-
-- The project uses Fiber for high-performance HTTP handling; if you prefer a different framework (Gin, Echo), I can switch it.
-- Consider adding CI (GitHub Actions) to run `go test` and static checks on push.
-- Add more examples (middleware, metrics, OpenAPI) as needed.
-- Implement logging and monitoring for production readiness.
-- Add a deployment guide for cloud platforms (e.g., AWS, GCP, Azure).
-
-## SOLID Principles
-
-This project is designed with the SOLID principles in mind to ensure maintainability, scalability, and robustness:
-
-1. **Single Responsibility Principle (SRP):**
-   - Each package and file in the project has a single responsibility. For example, the `internal/handler` package is responsible for handling HTTP requests, while the `internal/server` package is responsible for initializing and configuring the server.
-
-2. **Open/Closed Principle (OCP):**
-   - The modular structure allows for extending functionality without modifying existing code. For instance, new routes or middleware can be added without altering the core server logic.
-
-3. **Liskov Substitution Principle (LSP):**
-   - Interfaces can be introduced to ensure that components can be replaced with their implementations without affecting the system. For example, a service layer can be added with interfaces for better testability.
-
-4. **Interface Segregation Principle (ISP):**
-   - Interfaces, if introduced, will be small and focused, ensuring that components only depend on what they need.
-
-5. **Dependency Inversion Principle (DIP):**
-   - High-level modules do not depend on low-level modules; both depend on abstractions. Dependency injection can be used to achieve this.
-
-## Clean Architecture
-
-This project follows the principles of Clean Architecture to ensure separation of concerns and independence of frameworks and tools:
-
-1. **Entities:**
-   - Core business logic and rules can be encapsulated in a separate layer. While this project is minimal, entities can be introduced as the application grows.
-
-2. **Use Cases:**
-   - Application-specific business rules can be implemented in a use-case layer. This ensures that the core logic is independent of the delivery mechanism (e.g., HTTP).
-
-3. **Interface Adapters:**
-   - The `internal/handler` package acts as an adapter between the HTTP framework (Fiber) and the core application logic.
-
-4. **Frameworks and Drivers:**
-   - The `internal/server` package sets up the Fiber framework, but the core logic remains decoupled from the framework itself.
-
-5. **Dependency Rule:**
-   - Dependencies point inward. The `cmd/server` package depends on the `internal/server` package, which in turn depends on the `internal/handler` package. This ensures that the core logic is not dependent on external frameworks.
-
-By adhering to these principles, the project is structured to be maintainable, testable, and adaptable to future requirements.
+Contributions are welcome. Please open an issue or pull request and follow standard GitHub contribution workflows.
 
 ## License
 
-This project is released under the MIT License — see `LICENSE` for details.
+This project is licensed under the MIT License — see `LICENSE` for details.
