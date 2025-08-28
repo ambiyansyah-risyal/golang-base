@@ -1,0 +1,4 @@
+# Auto-request reviews from code owners
+* @ambiyansyah-risyal
+/internal/** @ambiyansyah-risyal
+/.github/** @ambiyansyah-risyal
