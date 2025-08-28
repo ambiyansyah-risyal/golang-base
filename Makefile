@@ -109,7 +109,7 @@ build:
 run:
 	@if [ -x "$(BIN)" ]; then \
 		echo "Running $(BIN)..."; \
-		./$(BIN) --config=config.yaml; \
+		./$(BIN); \
 	else \
 		echo "Binary not found, use 'make build' or 'go run ./cmd/server'"; exit 1; \
 	fi

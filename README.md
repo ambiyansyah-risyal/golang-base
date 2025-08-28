@@ -71,7 +71,7 @@ DB_NAME=golang_base
 DB_SSLMODE=disable
 ```
 
-The project also ships a sample `config.yaml` used for simple defaults in the repository root.
+The project uses environment variables for configuration.
 
 ## Database migrations (goose)
 
@@ -119,8 +119,8 @@ The Docker image exposes port 8080 by default.
 - `make lint` — run golangci-lint (if installed)
 - `make test` — run unit tests
 - `make check-coverage` — run tests with coverage gate (script in `scripts/`)
-- `make build` — build a binary into `./bin/server`
-- `make run` — run the built binary (`./bin/server --config=config.yaml`)
+-- `make build` — build a binary into `./bin/server`
+-- `make run` — run the built binary (`./bin/server`)
 
 See `Makefile` for more options (migration helpers, docker-build, install-hooks).
 
@@ -142,7 +142,7 @@ There is a coverage check helper at `scripts/check_coverage.sh` that the Makefil
 - `internal/config/` — environment loading and DSN generation
 - `internal/handler/` — HTTP handlers (minimal)
 - `migrations/` — SQL migration files for Goose
-- `Dockerfile`, `Makefile`, `config.yaml` — ops and tooling
+-- `Dockerfile`, `Makefile` — ops and tooling
 
 ## Module & dependencies
 
