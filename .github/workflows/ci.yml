@@ -31,7 +31,7 @@ jobs:
         run: go mod tidy
 
       - name: Run linters (golangci-lint)
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         with:
           version: v1.59.0
           # pass only the packages/arguments to lint; the action already invokes 'golangci-lint run'
