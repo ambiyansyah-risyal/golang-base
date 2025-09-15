@@ -9,3 +9,4 @@
 .github/prompts/postgresql-optimization.prompt.md
 .github/chatmodes/postgresql-dba.chatmode.md
 plan/feature-fullstack-blog-1.md
+AGENTS.md
