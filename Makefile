@@ -1,9 +1,18 @@
-.PHONY: build run test clean docker-build docker-run docker-stop dev-setup help
+.PHONY: build run test clean docker-build docker-run docker-stop dev-setup help \
+	migrate-create migrate-up migrate-down migrate-status migrate-reset \
+	docker-migrate-up docker-migrate-down docker-migrate-status install-goose \
+	dev-up dev-down dev-logs
 
 # Variables
 BINARY_NAME=golang-base
 DOCKER_IMAGE=golang-base:latest
 DOCKER_CONTAINER=golang-base-app
+
+# Database connection string for migrations (override by exporting DATABASE_URL)
+DB_URL?=$(DATABASE_URL)
+ifeq ($(strip $(DB_URL)),)
+DB_URL:=postgres://user:password@localhost:5432/golang_base?sslmode=disable
+endif
 
 # Default target
 .DEFAULT_GOAL := help
@@ -68,15 +77,51 @@ docker-clean: ## Clean Docker images and containers
 	docker rmi $(DOCKER_IMAGE) || true
 	@echo "Docker cleanup complete"
 
-migrate-up: ## Run database migrations up
-	@echo "Running database migrations..."
-	# Add your migration command here
-	@echo "Migrations complete"
+dev-up: ## Start only DB dependencies (postgres, redis) and run migrations for local dev
+	@echo "Starting DB dependencies for local dev..."
+	docker compose up -d postgres redis
+	@echo "Running DB migrations (one-shot)..."
+	docker compose run --rm migrator
+	@echo "DB ready. You can now run 'make run' to start the app locally."
 
-migrate-down: ## Run database migrations down
+dev-down: ## Stop DB dependencies for local dev
+	@echo "Stopping DB dependencies..."
+	docker compose rm -sfv migrator || true
+	docker compose down
+	@echo "DB dependencies stopped"
+
+dev-logs: ## Tail logs for postgres and redis
+	docker compose logs -f postgres redis
+
+migrate-create: ## Create a new migration (usage: make migrate-create NAME=create_users_table)
+	@if [ -z "$(NAME)" ]; then echo "NAME is required, e.g., make migrate-create NAME=create_users_table"; exit 1; fi
+	@echo "Creating new migration: $(NAME)"
+	goose -dir ./migrations create $(NAME) sql
+
+migrate-up: ## Run database migrations up (local env)
+	@echo "Running database migrations up..."
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DB_URL)" goose -dir ./migrations up
+
+migrate-down: ## Run database migrations down (local env)
 	@echo "Rolling back database migrations..."
-	# Add your migration rollback command here
-	@echo "Rollback complete"
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DB_URL)" goose -dir ./migrations down
+
+migrate-status: ## Show migration status (local env)
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DB_URL)" goose -dir ./migrations status
+
+migrate-reset: ## Reset database to initial state (local env)
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DB_URL)" goose -dir ./migrations reset
+
+docker-migrate-up: ## Run migrations against docker postgres
+	@echo "Running migrations against docker postgres..."
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING=postgres://user:password@localhost:5432/golang_base?sslmode=disable goose -dir ./migrations up
+
+docker-migrate-down: ## Rollback migrations against docker postgres
+	@echo "Rolling back migrations against docker postgres..."
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING=postgres://user:password@localhost:5432/golang_base?sslmode=disable goose -dir ./migrations down
+
+docker-migrate-status: ## Show migration status against docker postgres
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING=postgres://user:password@localhost:5432/golang_base?sslmode=disable goose -dir ./migrations status
 
 lint: ## Run linter
 	@echo "Running linter..."
@@ -102,7 +147,13 @@ install-tools: ## Install development tools
 	@echo "Installing development tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+	$(MAKE) install-goose
 	@echo "Tools installed"
+
+install-goose: ## Install goose database migration tool
+	@echo "Installing goose..."
+	go install github.com/pressly/goose/v3/cmd/goose@latest
+	@echo "goose installed"
 
 prod-deploy: ## Deploy to production (customize as needed)
 	@echo "Deploying to production..."

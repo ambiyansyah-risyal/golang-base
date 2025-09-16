@@ -33,10 +33,7 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Run migrations
-	if err := database.Migrate(db); err != nil {
-		log.Fatal("Failed to run migrations:", err)
-	}
+	// Note: Schema migrations are managed by Goose CLI, not by AutoMigrate.
 
 	// Initialize HTML template engine
 	engine := html.New("./web/templates", ".html")

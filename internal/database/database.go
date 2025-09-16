@@ -1,8 +1,6 @@
 package database
 
 import (
-	"golang-base/internal/models"
-
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -19,12 +17,4 @@ func Connect(databaseURL string) (*gorm.DB, error) {
 	}
 
 	return db, nil
-}
-
-// Migrate runs all database migrations
-func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
-		&models.User{},
-		// Add more models here as you create them
-	)
 }
