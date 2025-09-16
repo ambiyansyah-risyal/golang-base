@@ -13,7 +13,7 @@ Welcome to the GoLang-Base documentation hub. This page centralizes all the impo
 - Getting Started & Project Overview: [Root README](../README.md)
 - Security Guidelines: [SECURITY.md](./SECURITY.md)
 - Migrations: [migrations/README.md](../migrations/README.md)
-- Scripts & Utilities: [scripts/README.md](../scripts/README.md)
+- Scripts & Utilities: [docs/scripts/README.md](./scripts/README.md)
 
 ## Developer Environment
 
