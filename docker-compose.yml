@@ -4,10 +4,12 @@ services:
     image: postgres:15-alpine
     container_name: golang_base_db
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: golang_base
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -15,7 +17,7 @@ services:
     networks:
       - golang_base_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d golang_base"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,15 +48,18 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      APP_ENV: production
-      DATABASE_URL: postgres://user:password@postgres:5432/golang_base?sslmode=disable
-      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-make-it-long-and-random
-      ALLOWED_ORIGINS: "*"
-      RATE_LIMIT: 100
-      RATE_LIMIT_WINDOW: 1m
-      SESSION_TIMEOUT: 24h
-      BCRYPT_COST: 12
+      APP_ENV: ${APP_ENV:-production}
+      # Prefer DATABASE_URL from .env, otherwise construct from components with default DB_HOST=postgres for compose
+      DATABASE_URL: ${DATABASE_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      RATE_LIMIT: ${RATE_LIMIT:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1m}
+      SESSION_TIMEOUT: ${SESSION_TIMEOUT:-24h}
+      BCRYPT_COST: ${BCRYPT_COST:-12}
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,10 +81,12 @@ services:
       dockerfile: Dockerfile.migrator
     container_name: golang_base_migrator
     restart: "no"
+    env_file:
+      - .env
     environment:
       # Reuse same DB config as the app but point to postgres service
       GOOSE_DRIVER: postgres
-      GOOSE_DBSTRING: postgres://user:password@postgres:5432/golang_base?sslmode=disable
+      GOOSE_DBSTRING: ${DATABASE_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}
     depends_on:
       postgres:
         condition: service_healthy
