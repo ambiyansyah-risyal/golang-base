@@ -52,8 +52,8 @@ services:
       - .env
     environment:
       APP_ENV: ${APP_ENV:-production}
-      # Prefer DATABASE_URL from .env, otherwise construct from components with default DB_HOST=postgres for compose
-      DATABASE_URL: ${DATABASE_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}
+      # Always construct for Compose using the service hostname 'postgres' (avoid localhost from .env)
+      DATABASE_URL: postgres://${DB_USER:-user}:${DB_PASSWORD:-password}@postgres:${DB_PORT:-5432}/${DB_NAME:-golang_base}?sslmode=${DB_SSLMODE:-disable}
       JWT_SECRET: ${JWT_SECRET}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
       RATE_LIMIT: ${RATE_LIMIT:-100}
@@ -86,7 +86,7 @@ services:
     environment:
       # Reuse same DB config as the app but point to postgres service
       GOOSE_DRIVER: postgres
-      GOOSE_DBSTRING: ${DATABASE_URL:-postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}}
+      GOOSE_DBSTRING: postgres://${DB_USER:-user}:${DB_PASSWORD:-password}@postgres:${DB_PORT:-5432}/${DB_NAME:-golang_base}?sslmode=${DB_SSLMODE:-disable}
     depends_on:
       postgres:
         condition: service_healthy
