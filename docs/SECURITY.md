@@ -119,6 +119,10 @@ export DB_PASSWORD="your-secure-password"
 make migrate-up
 ```
 
+### Docker Compose Hostname Note
+
+Inside Docker Compose, containers must use the service hostname `postgres` to connect to the database (not `localhost`). This prevents connection errors due to network isolation. The `docker-compose.yml` in this repo constructs `DATABASE_URL` and `GOOSE_DBSTRING` with the `postgres` hostname by default to avoid misconfiguration from `.env` values.
+
 ### Security Checklist
 
 - [ ] Changed default database credentials

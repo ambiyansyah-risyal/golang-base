@@ -28,7 +28,24 @@ A modern, fast, and secure fullstack web application built with **Go Fiber**, **
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/)
 - [PostgreSQL](https://www.postgresql.org/) (if running without Docker)
 
-### Get Started in 3 Steps
+### One-command Setup (Recommended)
+
+If you just cloned the repository and want to start coding immediately:
+
+```bash
+make dev-check
+```
+
+This will:
+- Ensure `.env` exists (copied from `.env.example` if missing)
+- Build images if needed
+- Start PostgreSQL and Redis with health checks
+- Run database migrations
+- Start the app and verify the `/health` endpoint
+
+Then open http://localhost:3000
+
+### Get Started in 3 Steps (Manual)
 
 1. **Clone and setup**
    ```bash
@@ -49,6 +66,8 @@ A modern, fast, and secure fullstack web application built with **Go Fiber**, **
 
 Your application is now running with a PostgreSQL database, Redis cache, and Nginx reverse proxy!
 
+> Note: Inside Docker Compose, services connect to the database using the service hostname `postgres` (not `localhost`). The stack loads environment variables from `.env` via `env_file` in `docker-compose.yml`.
+
 ## Development Workflows
 
 ### Essential Commands
@@ -61,6 +80,7 @@ make dev-setup          # Copy .env file and install dependencies
 make run                 # Start development server (requires external DB)
 make dev-up             # Start PostgreSQL + Redis for local development
 make docker-run         # Full stack with all services
+make dev-check          # Validate env, DBs, migrations, and app health
 
 # Database
 make migrate-up         # Apply database migrations
@@ -183,7 +203,7 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
 
 ## Configuration
 
-Configuration is managed through environment variables. Copy `.env.example` to `.env` and customize:
+Configuration is managed through environment variables. Copy `.env.example` to `.env` and customize. Docker Compose loads this file automatically via `env_file`.
 
 ```bash
 # Application
@@ -192,6 +212,13 @@ PORT=3000
 
 # Database
 DATABASE_URL=postgres://user:password@localhost:5432/golang_base?sslmode=disable
+# Optional granular DB vars (used by Makefile and Compose)
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=user
+DB_PASSWORD=password
+DB_NAME=golang_base
+DB_SSLMODE=disable
 
 # Security
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
@@ -227,6 +254,10 @@ The Docker setup includes:
 - **Redis** for caching and sessions
 - **Nginx** reverse proxy with SSL termination ready
 - **Automatic migrations** on startup
+ - **env_file support** for secrets via `.env`
+ - **Service hostnames**: app and migrator connect to Postgres via `postgres` inside Compose
+
+For security best practices, see `docs/SECURITY.md`.
 
 ### Binary Deployment
 
