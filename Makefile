@@ -1,18 +1,51 @@
 .PHONY: build run test clean docker-build docker-run docker-stop dev-setup help \
 	migrate-create migrate-up migrate-down migrate-status migrate-reset \
 	docker-migrate-up docker-migrate-down docker-migrate-status install-goose \
-	dev-up dev-down dev-logs
+	dev-up dev-down dev-logs load-env
+
+# =============================================================================
+# SECURITY NOTICE: Database Credential Management
+# =============================================================================
+# This Makefile uses environment variables for database credentials to prevent
+# hardcoding sensitive information. The following environment variables are used:
+#   - DB_HOST: Database host (default: localhost)
+#   - DB_PORT: Database port (default: 5432)
+#   - DB_USER: Database username (default: user)
+#   - DB_PASSWORD: Database password (default: password)
+#   - DB_NAME: Database name (default: golang_base)
+#   - DB_SSLMODE: SSL mode (default: disable)
+#
+# For production deployments:
+# 1. Set these as environment variables or use a secrets management system
+# 2. Never commit real credentials to version control
+# 3. Use strong, unique passwords
+# 4. Enable SSL/TLS (set DB_SSLMODE=require)
+# 5. Rotate credentials regularly
+# =============================================================================
 
 # Variables
 BINARY_NAME=golang-base
 DOCKER_IMAGE=golang-base:latest
 DOCKER_CONTAINER=golang-base-app
 
-# Database connection string for migrations (override by exporting DATABASE_URL)
+# Secure Database Configuration - Load from environment variables
+# These can be overridden by setting environment variables or loaded from .env file
+DB_HOST?=localhost
+DB_PORT?=5432
+DB_USER?=user
+DB_PASSWORD?=password
+DB_NAME?=golang_base
+DB_SSLMODE?=disable
+
+# Construct database URL from components for security
+# Override by exporting DATABASE_URL if you want to use a full connection string
 DB_URL?=$(DATABASE_URL)
 ifeq ($(strip $(DB_URL)),)
-DB_URL:=postgres://user:password@localhost:5432/golang_base?sslmode=disable
+DB_URL:=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 endif
+
+# Docker-specific database URL (when using docker-compose services)
+DOCKER_DB_URL:=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 
 # Default target
 .DEFAULT_GOAL := help
@@ -52,6 +85,20 @@ dev-setup: ## Set up development environment
 	go mod tidy
 	go mod download
 	@echo "Development setup complete"
+	@echo ""
+	@echo "SECURITY NOTICE:"
+	@echo "Please update the database credentials in .env file before running migrations!"
+	@echo "Default credentials should only be used for local development."
+
+load-env: ## Load environment variables from .env file (for secure credential management)
+	@echo "Loading environment variables from .env file..."
+	@if [ -f .env ]; then \
+		export $$(cat .env | grep -v '^#' | xargs); \
+		echo "Environment variables loaded successfully"; \
+	else \
+		echo "ERROR: .env file not found. Run 'make dev-setup' first."; \
+		exit 1; \
+	fi
 
 docker-build: ## Build Docker image
 	@echo "Building Docker image..."
@@ -114,14 +161,14 @@ migrate-reset: ## Reset database to initial state (local env)
 
 docker-migrate-up: ## Run migrations against docker postgres
 	@echo "Running migrations against docker postgres..."
-	GOOSE_DRIVER=postgres GOOSE_DBSTRING=postgres://user:password@localhost:5432/golang_base?sslmode=disable goose -dir ./migrations up
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DOCKER_DB_URL)" goose -dir ./migrations up
 
 docker-migrate-down: ## Rollback migrations against docker postgres
 	@echo "Rolling back migrations against docker postgres..."
-	GOOSE_DRIVER=postgres GOOSE_DBSTRING=postgres://user:password@localhost:5432/golang_base?sslmode=disable goose -dir ./migrations down
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DOCKER_DB_URL)" goose -dir ./migrations down
 
 docker-migrate-status: ## Show migration status against docker postgres
-	GOOSE_DRIVER=postgres GOOSE_DBSTRING=postgres://user:password@localhost:5432/golang_base?sslmode=disable goose -dir ./migrations status
+	GOOSE_DRIVER=postgres GOOSE_DBSTRING="$(DOCKER_DB_URL)" goose -dir ./migrations status
 
 lint: ## Run linter
 	@echo "Running linter..."
@@ -162,12 +209,12 @@ prod-deploy: ## Deploy to production (customize as needed)
 
 backup-db: ## Backup database
 	@echo "Creating database backup..."
-	docker-compose exec postgres pg_dump -U user golang_base > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker-compose exec postgres pg_dump -U $(DB_USER) $(DB_NAME) > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "Database backup created"
 
 restore-db: ## Restore database (usage: make restore-db BACKUP=backup_file.sql)
 	@echo "Restoring database from $(BACKUP)..."
-	docker-compose exec -T postgres psql -U user -d golang_base < $(BACKUP)
+	docker-compose exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) < $(BACKUP)
 	@echo "Database restored"
 
 generate-password-hash: ## Generate bcrypt hash for password (usage: make generate-password-hash PASSWORD=yourpassword)
