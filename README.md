@@ -385,6 +385,12 @@ GoLang-Base is optimized for performance:
 - **Docker Documentation**: https://docs.docker.com/
 - **Goose Migrations**: https://github.com/pressly/goose
 
+## Documentation
+
+For centralized docs (quick start, security, migrations, and utilities), see:
+
+- docs/README.md — Documentation Hub
+
 ## Next Steps
 
 - [ ] **Add Tests**: Expand test coverage for your use case
