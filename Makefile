@@ -1,7 +1,7 @@
 .PHONY: build run test clean docker-build docker-run docker-stop dev-setup help \
 	migrate-create migrate-up migrate-down migrate-status migrate-reset \
 	docker-migrate-up docker-migrate-down docker-migrate-status install-goose \
-	dev-up dev-down dev-logs load-env
+	dev-up dev-down dev-logs load-env dev-check
 
 # =============================================================================
 # SECURITY NOTICE: Database Credential Management
@@ -99,6 +99,11 @@ load-env: ## Load environment variables from .env file (for secure credential ma
 		echo "ERROR: .env file not found. Run 'make dev-setup' first."; \
 		exit 1; \
 	fi
+
+dev-check: ## Validate local dev stack (env, postgres, redis, migrations, app health)
+	@echo "Running developer environment readiness check..."
+	@chmod +x scripts/dev_check.sh
+	@./scripts/dev_check.sh
 
 docker-build: ## Build Docker image
 	@echo "Building Docker image..."
