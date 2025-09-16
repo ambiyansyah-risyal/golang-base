@@ -169,3 +169,8 @@ restore-db: ## Restore database (usage: make restore-db BACKUP=backup_file.sql)
 	@echo "Restoring database from $(BACKUP)..."
 	docker-compose exec -T postgres psql -U user -d golang_base < $(BACKUP)
 	@echo "Database restored"
+
+generate-password-hash: ## Generate bcrypt hash for password (usage: make generate-password-hash PASSWORD=yourpassword)
+	@if [ -z "$(PASSWORD)" ]; then echo "PASSWORD is required, e.g., make generate-password-hash PASSWORD=mypassword123"; exit 1; fi
+	@echo "Generating bcrypt hash for password..."
+	cd scripts && go run generate_password_hash.go "$(PASSWORD)"
