@@ -1,66 +1,120 @@
-APP_NAME=server
-BIN_DIR=bin
-PKG=./...
-CMD=./cmd/server
+.PHONY: build run test clean docker-build docker-run docker-stop dev-setup help
 
-# Database connection (for Goose)
-DB_HOST?=localhost
-DB_PORT?=5432
-DB_USER?=postgres
-DB_PASSWORD?=postgres
-DB_NAME?=appdb
-DB_SSLMODE?=disable
-DB_DSN=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+# Variables
+BINARY_NAME=golang-base
+DOCKER_IMAGE=golang-base:latest
+DOCKER_CONTAINER=golang-base-app
 
-.PHONY: run build test fmt vet tidy clean
+# Default target
+.DEFAULT_GOAL := help
 
-run:
-	go run $(CMD)
+help: ## Display this help message
+	@echo "Available commands:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-build:
-	mkdir -p $(BIN_DIR)
-	go build -o $(BIN_DIR)/$(APP_NAME) $(CMD)
+build: ## Build the application binary
+	@echo "Building application..."
+	go build -o bin/$(BINARY_NAME) ./cmd/server
+	@echo "Build complete: bin/$(BINARY_NAME)"
 
-test:
-	go test $(PKG) -race -cover
+run: ## Run the application
+	@echo "Starting application..."
+	go run ./cmd/server
 
-fmt:
-	go fmt $(PKG)
+test: ## Run tests
+	@echo "Running tests..."
+	go test -v ./...
 
-vet:
-	go vet $(PKG)
+test-coverage: ## Run tests with coverage
+	@echo "Running tests with coverage..."
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
 
-tidy:
+clean: ## Clean build artifacts
+	@echo "Cleaning..."
+	rm -rf bin/
+	rm -f coverage.out coverage.html
+	@echo "Clean complete"
+
+dev-setup: ## Set up development environment
+	@echo "Setting up development environment..."
+	cp .env.example .env
 	go mod tidy
+	go mod download
+	@echo "Development setup complete"
 
-clean:
-	rm -rf $(BIN_DIR)
+docker-build: ## Build Docker image
+	@echo "Building Docker image..."
+	docker build -t $(DOCKER_IMAGE) .
+	@echo "Docker image built: $(DOCKER_IMAGE)"
 
-# Goose migrations via go run (no global install needed)
-.PHONY: migrate-create migrate-up migrate-down migrate-status
-
-migrate-create:
-	@if [ -z "$(name)" ]; then echo "Usage: make migrate-create name=add_users"; exit 1; fi
-	go run github.com/pressly/goose/v3/cmd/goose -dir ./migrations create $(name) sql
-
-migrate-up:
-	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(DB_DSN) go run github.com/pressly/goose/v3/cmd/goose -dir ./migrations up
-
-migrate-down:
-	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(DB_DSN) go run github.com/pressly/goose/v3/cmd/goose -dir ./migrations down
-
-migrate-status:
-	GOOSE_DRIVER=postgres GOOSE_DBSTRING=$(DB_DSN) go run github.com/pressly/goose/v3/cmd/goose -dir ./migrations status
-
-# Docker helpers
-.PHONY: docker-build docker-up docker-down
-
-docker-build:
-	docker build -t golang-base:dev .
-
-docker-up:
+docker-run: ## Run application in Docker
+	@echo "Starting Docker containers..."
 	docker compose up -d
+	@echo "Application running at http://localhost:3000"
 
-docker-down:
-	docker compose down -v
+docker-stop: ## Stop Docker containers
+	@echo "Stopping Docker containers..."
+	docker compose down
+	@echo "Docker containers stopped"
 
+docker-logs: ## View Docker logs
+	docker compose logs -f app
+
+docker-clean: ## Clean Docker images and containers
+	@echo "Cleaning Docker..."
+	docker compose down -v --remove-orphans
+	docker rmi $(DOCKER_IMAGE) || true
+	@echo "Docker cleanup complete"
+
+migrate-up: ## Run database migrations up
+	@echo "Running database migrations..."
+	# Add your migration command here
+	@echo "Migrations complete"
+
+migrate-down: ## Run database migrations down
+	@echo "Rolling back database migrations..."
+	# Add your migration rollback command here
+	@echo "Rollback complete"
+
+lint: ## Run linter
+	@echo "Running linter..."
+	golangci-lint run
+	@echo "Linting complete"
+
+format: ## Format code
+	@echo "Formatting code..."
+	go fmt ./...
+	@echo "Formatting complete"
+
+security-check: ## Run security checks
+	@echo "Running security checks..."
+	gosec ./...
+	@echo "Security check complete"
+
+deps-check: ## Check for dependency updates
+	@echo "Checking for dependency updates..."
+	go list -u -m all
+	@echo "Dependency check complete"
+
+install-tools: ## Install development tools
+	@echo "Installing development tools..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+	@echo "Tools installed"
+
+prod-deploy: ## Deploy to production (customize as needed)
+	@echo "Deploying to production..."
+	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	@echo "Production deployment complete"
+
+backup-db: ## Backup database
+	@echo "Creating database backup..."
+	docker-compose exec postgres pg_dump -U user golang_base > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	@echo "Database backup created"
+
+restore-db: ## Restore database (usage: make restore-db BACKUP=backup_file.sql)
+	@echo "Restoring database from $(BACKUP)..."
+	docker-compose exec -T postgres psql -U user -d golang_base < $(BACKUP)
+	@echo "Database restored"

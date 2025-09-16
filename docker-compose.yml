@@ -1,42 +1,97 @@
+version: '3.8'
+
 services:
-  db:
+  # PostgreSQL Database
+  postgres:
     image: postgres:15-alpine
     container_name: golang_base_db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-appdb}
+      POSTGRES_DB: golang_base
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
+    networks:
+      - golang_base_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d golang_base"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # Redis Cache (optional)
   redis:
     image: redis:7-alpine
     container_name: golang_base_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - golang_base_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # Go Application
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: golang_base_app
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - .env
-    environment:
-      APP_PORT: ${APP_PORT:-8080}
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-appdb}
-      DB_SSLMODE: disable
-      REDIS_ADDR: redis:6379
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "3000:3000"
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgres://user:password@postgres:5432/golang_base?sslmode=disable
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-make-it-long-and-random
+      ALLOWED_ORIGINS: "*"
+      RATE_LIMIT: 100
+      RATE_LIMIT_WINDOW: 1m
+      SESSION_TIMEOUT: 24h
+      BCRYPT_COST: 12
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - golang_base_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: golang_base_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - golang_base_network
 
 volumes:
-  db_data:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
 
+networks:
+  golang_base_network:
+    driver: bridge

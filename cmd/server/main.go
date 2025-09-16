@@ -1,68 +1,109 @@
 package main
 
 import (
-    "context"
-    "log"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"log"
+	"os"
 
-    "github.com/gofiber/fiber/v2"
-    "go.uber.org/zap"
+	"golang-base/internal/config"
+	"golang-base/internal/database"
+	"golang-base/internal/routes"
 
-    "github.com/ambiyansyah-risyal/golang-base/internal/app/http/router"
-    "github.com/ambiyansyah-risyal/golang-base/internal/config"
-    appcache "github.com/ambiyansyah-risyal/golang-base/internal/platform/cache"
-    appdb "github.com/ambiyansyah-risyal/golang-base/internal/platform/db"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/template/html/v2"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-    // Config
-    cfg, err := config.Load()
-    if err != nil {
-        log.Fatalf("config: %v", err)
-    }
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found")
+	}
 
-    // Logger
-    logger, _ := zap.NewProduction()
-    defer logger.Sync()
-    sugar := logger.Sugar()
+	// Load configuration
+	cfg := config.Load()
 
-    // Infra
-    gdb, err := appdb.NewPostgres(cfg)
-    if err != nil {
-        sugar.Fatalf("db connect: %v", err)
-    }
-    sqlDB, _ := gdb.DB()
+	// Initialize database
+	db, err := database.Connect(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
 
-    rdb := appcache.NewRedis(cfg)
-    if err := appcache.Ping(context.Background(), rdb); err != nil {
-        sugar.Fatalf("redis connect: %v", err)
-    }
+	// Run migrations
+	if err := database.Migrate(db); err != nil {
+		log.Fatal("Failed to run migrations:", err)
+	}
 
-    // Fiber app
-    app := fiber.New()
-    router.Register(app)
+	// Initialize HTML template engine
+	engine := html.New("./web/templates", ".html")
+	engine.Reload(cfg.Environment == "development")
 
-    // Graceful shutdown
-    go func() {
-        if err := app.Listen(cfg.Addr()); err != nil {
-            sugar.Fatalf("listen: %v", err)
-        }
-    }()
+	// Create Fiber app with template engine
+	app := fiber.New(fiber.Config{
+		Views:       engine,
+		ViewsLayout: "layouts/main",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
 
-    quit := make(chan os.Signal, 1)
-    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-    <-quit
+			// Send custom error page in production
+			if cfg.Environment == "production" {
+				return c.Status(code).Render("error", fiber.Map{
+					"Title": "Error",
+					"Code":  code,
+				})
+			}
 
-    ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
-    defer cancel()
-    _ = ctx // Fiber v2 uses duration directly below
-    _ = app.ShutdownWithTimeout(cfg.ShutdownTimeout)
-    if sqlDB != nil {
-        _ = sqlDB.Close()
-    }
-    _ = rdb.Close()
-    sugar.Infow("server stopped", "env", cfg.AppEnv, "time", time.Now())
+			// Send error details in development
+			return c.Status(code).JSON(fiber.Map{
+				"error": err.Error(),
+				"code":  code,
+			})
+		},
+	})
+
+	// Security middleware
+	app.Use(helmet.New())
+
+	// CORS middleware
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: cfg.AllowedOrigins,
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowMethods: "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS",
+	}))
+
+	// Rate limiting
+	app.Use(limiter.New(limiter.Config{
+		Max:        cfg.RateLimit,
+		Expiration: cfg.RateLimitWindow,
+	}))
+
+	// Logger middleware
+	app.Use(logger.New(logger.Config{
+		Format: "[${ip}]:${port} ${status} - ${method} ${path}\n",
+	}))
+
+	// Recover middleware
+	app.Use(recover.New())
+
+	// Static files
+	app.Static("/static", "./web/static")
+
+	// Setup routes
+	routes.Setup(app, db, cfg)
+
+	// Start server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	log.Printf("Server starting on port %s", port)
+	log.Fatal(app.Listen(":" + port))
 }
