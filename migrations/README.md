@@ -1,15 +1,13 @@
-This folder holds Goose SQL migrations.
+# Database Migrations
 
-Do not add files manually. Always use the Makefile command to generate migrations:
+This folder contains Goose SQL migrations for schema changes.
 
-    make migrate-create NAME=descriptive_change
+**⚠️ Never add files manually!** Always use:
 
-Then edit the generated file to add your SQL in the `-- +goose Up` and `-- +goose Down` sections.
+```bash
+make migrate-create NAME=descriptive_change
+make migrate-up
+make migrate-status
+```
 
-Apply migrations locally:
-
-    make migrate-up
-
-Check status:
-
-    make migrate-status
+See the main [README.md](../README.md#database-management) for full documentation.

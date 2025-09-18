@@ -18,7 +18,7 @@ A modern, fast, and secure fullstack web application built with **Go Fiber**, **
 - **📱 Dual Interface**: Serves both JSON APIs (`/api/v1/*`) and server-side rendered HTML pages
 - **🗄️ Database Ready**: PostgreSQL with GORM ORM, automatic migrations, and connection pooling
 - **🐳 Container Native**: Multi-stage Docker builds with Docker Compose for full-stack development
-- **⚡ Developer Experience**: Hot reload in development, comprehensive Makefile commands, and structured logging
+- **⚡ Developer Experience**: Auto-reload in development with Air, comprehensive Makefile commands, and structured logging
 
 ## Quick Start
 
@@ -54,7 +54,13 @@ Then open http://localhost:3000
    make dev-setup
    ```
 
-2. **Start the full stack**
+2. **Start development with auto-reload** (Recommended)
+   ```bash
+   make dev-up    # Start PostgreSQL + Redis
+   make dev       # Start app with auto-reload
+   ```
+   
+   **Alternative: Full stack with Docker**
    ```bash
    make docker-run
    ```
@@ -70,6 +76,32 @@ Your application is now running with a PostgreSQL database, Redis cache, and Ngi
 
 ## Development Workflows
 
+### Auto-Reload Development
+
+For the best development experience, use the auto-reload feature powered by [Air](https://github.com/air-verse/air):
+
+```bash
+# Recommended: Start development server with auto-reload
+make dev
+
+# Or start database dependencies first, then auto-reload app
+make dev-up    # Start PostgreSQL + Redis
+make dev       # Start app with auto-reload (recommended)
+
+# Alternative: Traditional development without auto-reload
+make dev-up    # Start PostgreSQL + Redis  
+make run       # Start app without auto-reload
+```
+
+The auto-reload feature:
+- **Monitors file changes** in `.go`, `.html`, `.css`, `.js`, and `.env` files
+- **Automatically rebuilds** and restarts the application when changes are detected
+- **Preserves environment** with `APP_ENV=development` for template reloading
+- **Excludes directories** like `vendor/`, `tmp/`, `.git/` to avoid unnecessary rebuilds
+- **Fast rebuilds** with optimized build settings
+
+Air will automatically install when you run `make dev` for the first time.
+
 ### Essential Commands
 
 ```bash
@@ -77,7 +109,8 @@ Your application is now running with a PostgreSQL database, Redis cache, and Ngi
 make dev-setup          # Copy .env file and install dependencies
 
 # Development
-make run                 # Start development server (requires external DB)
+make dev                 # Start development server with auto-reload (recommended, requires external DB)
+make run                 # Start development server without auto-reload (requires external DB)
 make dev-up             # Start PostgreSQL + Redis for local development
 make docker-run         # Full stack with all services
 make dev-check          # Validate env, DBs, migrations, and app health
@@ -92,6 +125,10 @@ make test               # Run tests
 make test-coverage      # Run tests with HTML coverage report
 make lint               # Run code linter
 make security-check     # Run security analysis
+
+# Tools Installation
+make install-air        # Install Air for auto-reload development
+make install-tools      # Install all development tools (linter, Air, etc.)
 
 # Production
 make build              # Create production binary
@@ -273,13 +310,13 @@ make build
 
 ### Migrations
 
-Database schema is managed with [Goose](https://github.com/pressly/goose) migrations:
+Database schema is managed with [Goose](https://github.com/pressly/goose) migrations. **Do not add migration files manually** - always use the Makefile commands:
 
 ```bash
 # Create new migration
 make migrate-create NAME=add_user_preferences
 
-# Apply migrations
+# Apply migrations  
 make migrate-up
 
 # Check status
@@ -289,17 +326,38 @@ make migrate-status
 make migrate-down
 ```
 
-### Custom Password Hashes
+### Default Users & Security
 
-Generate bcrypt hashes for seeding users:
+The application includes default users for development:
+
+| Role  | Email | Password | Access Level |
+|-------|-------|----------|-------------|
+| Admin | `admin@example.com` | `admin123` | Full system access |
+| User  | `user@example.com` | `admin123` | Standard user access |
+
+> [!CAUTION]
+> **Change these passwords immediately in production!** These are created by migration `20250916140000_insert_default_admin_user.sql`.
+
+### Password Hash Generation
+
+Generate bcrypt hashes for custom users:
 
 ```bash
-# Using the included script
+# Using the Makefile (recommended)
 make generate-password-hash PASSWORD="your-secure-password"
 
 # Direct script usage
 cd scripts && go run generate_password_hash.go "your-password"
 ```
+
+### Production Security Checklist
+
+- [ ] Change default admin password immediately after first login
+- [ ] Delete or change the test user password  
+- [ ] Use strong, unique passwords (12+ characters)
+- [ ] Enable proper SSL/TLS (`DB_SSLMODE=require`)
+- [ ] Use environment variables for production credentials
+- [ ] Rotate credentials regularly
 
 ## Testing
 
@@ -377,6 +435,18 @@ GoLang-Base is optimized for performance:
 - **Efficient Queries**: Connection pooling and optimized database queries
 - **Static Assets**: Efficient serving with proper caching headers
 
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup and workflow
+- Code standards and testing
+- Pull request process
+- Project structure overview
+
+## Security
+
+For security guidelines, see [SECURITY.md](SECURITY.md).
+
 ## Resources
 
 - **Go Fiber Documentation**: https://docs.gofiber.io/
@@ -384,12 +454,6 @@ GoLang-Base is optimized for performance:
 - **PostgreSQL Documentation**: https://www.postgresql.org/docs/
 - **Docker Documentation**: https://docs.docker.com/
 - **Goose Migrations**: https://github.com/pressly/goose
-
-## Documentation
-
-For centralized docs (quick start, security, migrations, and utilities), see:
-
-- docs/README.md — Documentation Hub
 
 ## Next Steps
 

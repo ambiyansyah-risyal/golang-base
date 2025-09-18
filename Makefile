@@ -1,7 +1,7 @@
 .PHONY: build run test clean docker-build docker-run docker-stop dev-setup help \
 	migrate-create migrate-up migrate-down migrate-status migrate-reset \
 	docker-migrate-up docker-migrate-down docker-migrate-status install-goose \
-	dev-up dev-down dev-logs load-env dev-check
+	dev-up dev-down dev-logs load-env dev-check dev install-air
 
 # =============================================================================
 # SECURITY NOTICE: Database Credential Management
@@ -63,6 +63,15 @@ run: ## Run the application
 	@echo "Starting application..."
 	go run ./cmd/server
 
+dev: ## Run the application with auto-reload (requires Air)
+	@echo "Starting application with auto-reload..."
+	@if ! command -v air >/dev/null 2>&1; then \
+		echo "Air not found. Installing..."; \
+		$(MAKE) install-air; \
+	fi
+	@mkdir -p tmp
+	air
+
 test: ## Run tests
 	@echo "Running tests..."
 	go test -v ./...
@@ -75,7 +84,7 @@ test-coverage: ## Run tests with coverage
 
 clean: ## Clean build artifacts
 	@echo "Cleaning..."
-	rm -rf bin/
+	rm -rf bin/ tmp/
 	rm -f coverage.out coverage.html
 	@echo "Clean complete"
 
@@ -134,7 +143,7 @@ dev-up: ## Start only DB dependencies (postgres, redis) and run migrations for l
 	docker compose up -d postgres redis
 	@echo "Running DB migrations (one-shot)..."
 	docker compose run --rm migrator
-	@echo "DB ready. You can now run 'make run' to start the app locally."
+	@echo "DB ready. You can now run 'make dev' for auto-reload development or 'make run' for standard mode."
 
 dev-down: ## Stop DB dependencies for local dev
 	@echo "Stopping DB dependencies..."
@@ -200,12 +209,18 @@ install-tools: ## Install development tools
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
 	$(MAKE) install-goose
+	$(MAKE) install-air
 	@echo "Tools installed"
 
 install-goose: ## Install goose database migration tool
 	@echo "Installing goose..."
 	go install github.com/pressly/goose/v3/cmd/goose@latest
 	@echo "goose installed"
+
+install-air: ## Install Air live-reload tool for development
+	@echo "Installing Air..."
+	go install github.com/air-verse/air@latest
+	@echo "Air installed. You can now use 'make dev' for auto-reload development."
 
 prod-deploy: ## Deploy to production (customize as needed)
 	@echo "Deploying to production..."
